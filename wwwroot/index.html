@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ระบบยืม-คืน Master Sample</title>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script>
+window.addEventListener('error', function (e) {
+  var l = document.getElementById('loading');
+  if (l) { l.style.display = 'block'; l.textContent = 'หน้าเว็บมีข้อผิดพลาด: ' + e.message + ' (ไฟล์: ' + String(e.filename || 'inline').slice(-60) + ' บรรทัด ' + e.lineno + ')'; }
+});
+</script>
+<style>
+:root{--ink:#111;--red:#d90429;--muted:#555;--soft:#f2f2f2}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Kanit',sans-serif;background:#fff;color:var(--ink)}
+header{background:var(--ink);color:#fff;padding:16px 20px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;border-bottom:5px solid var(--red)}
+header h1{margin:0;font-size:19px;font-weight:600}
+nav{display:flex;gap:8px;flex-wrap:wrap}
+nav button{border:1px solid #fff;background:transparent;color:#fff;padding:8px 14px;border-radius:4px;font:500 14px 'Kanit';cursor:pointer}
+nav button.active{background:var(--red);border-color:var(--red)}
+main{max-width:1100px;margin:20px auto;padding:0 16px 60px}
+.page{display:none}.page.active{display:block}
+.muted{color:var(--muted);font-size:13px}
+h2{font-size:18px;margin:24px 0 8px;padding-left:10px;border-left:5px solid var(--red)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:4px 0 16px}
+.stat{border:2px solid var(--ink);padding:14px}
+.stat b{display:block;font-size:30px;font-weight:600}
+.stat.s-over{background:var(--red);border-color:var(--red);color:#fff}
+.stat.s-over .muted{color:#fff}
+.wrap{overflow-x:auto;border:2px solid var(--ink)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #ddd;font-size:14px;white-space:nowrap}
+th{background:var(--ink);color:#fff;font-weight:500}
+tbody tr.click{cursor:pointer}tbody tr.click:hover{background:var(--soft)}
+tr.row-over{background:#fff0f2;box-shadow:inset 4px 0 0 var(--red)}
+.pill{display:inline-block;padding:3px 10px;border-radius:3px;font-size:12px;font-weight:500;border:1px solid var(--ink)}
+.ok{background:#fff}.warn{background:var(--ink);color:#fff}.over{background:var(--red);color:#fff;border-color:var(--red)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+input,select{padding:10px;border:2px solid var(--ink);border-radius:4px;font:14px 'Kanit';background:#fff}
+input:focus,select:focus{outline:3px solid var(--red);outline-offset:1px}
+.chip{border:1px solid var(--ink);background:#fff;color:var(--ink);padding:6px 12px;border-radius:4px;cursor:pointer;font:13px 'Kanit'}
+.chip.active{background:var(--ink);color:#fff}
+.box{border:2px solid var(--ink);padding:18px;max-width:600px;margin-bottom:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.row input{flex:1;min-width:160px}
+.field{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.btn{padding:10px 14px;border-radius:4px;border:2px solid var(--ink);cursor:pointer;font:600 14px 'Kanit';background:#fff;color:var(--ink)}
+.btn.primary{background:var(--ink);color:#fff}.btn.danger{background:var(--red);border-color:var(--red);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.info{margin-top:14px;border-top:2px solid var(--ink);padding-top:12px}
+dl{display:grid;grid-template-columns:120px 1fr;gap:6px 10px;margin:0 0 6px}
+dt{color:var(--muted)}dd{margin:0;font-weight:500}
+.reader{width:100%;max-width:340px;margin-top:10px;display:none}
+.actions{margin-top:16px;display:flex;gap:8px;justify-content:flex-end}
+.cand{padding:8px 10px;border:1px solid var(--ink);margin-top:6px;cursor:pointer}
+.cand:hover{background:var(--soft)}
+@media(max-width:600px){dl{grid-template-columns:100px 1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>ระบบยืม-คืน Master Sample</h1>
+  <nav id="nav">
+    <button data-p="dash" class="active">Dashboard</button>
+    <button data-p="borrow">ยืม</button>
+    <button data-p="return">คืน</button>
+    <button data-p="history">ประวัติ</button>
+  </nav>
+</header>
+
+<main>
+<section id="dash" class="page active">
+  <div class="tools">
+    <select id="locD"></select>
+    <button class="chip active" data-f="all">ทั้งหมด</button>
+    <button class="chip" data-f="available">พร้อมให้ยืม</button>
+    <button class="chip" data-f="borrowed">ถูกยืม</button>
+  </div>
+  <div class="stats">
+    <div class="stat"><span class="muted">อุปกรณ์ทั้งหมด</span><b id="stAll">-</b></div>
+    <div class="stat"><span class="muted">พร้อมให้ยืม</span><b id="stAvail">-</b></div>
+    <div class="stat"><span class="muted">ถูกยืมอยู่</span><b id="stBor">-</b></div>
+    <div class="stat s-over"><span class="muted">เลยกำหนดคืน</span><b id="stOver">-</b></div>
+  </div>
+  <div class="wrap"><table>
+    <thead><tr><th>ID</th><th>อุปกรณ์</th><th>Type</th><th>Location</th><th>สถานะการยืม</th></tr></thead>
+    <tbody id="allTbody"></tbody>
+  </table></div>
+  <div id="loading" class="muted" style="padding:10px">⚠ สคริปต์ของหน้าเว็บยังไม่ทำงาน — ถ้าข้อความนี้ค้างอยู่ กด F12 แล้วดูแท็บ Console</div>
+</section>
+
+<section id="borrow" class="page">
+  <div class="box">
+    <b style="font-size:17px">ยืมอุปกรณ์</b>
+    <div class="field"><label>Location</label><select id="locB"></select></div>
+    <div id="scanB"></div>
+  </div>
+  <div id="detailB"></div>
+  <h2>อุปกรณ์ที่พร้อมให้ยืม (กดเลือกได้)</h2>
+  <div class="wrap"><table>
+    <thead><tr><th>ID</th><th>อุปกรณ์</th><th>Type</th><th>Location</th></tr></thead>
+    <tbody id="listB"></tbody>
+  </table></div>
+</section>
+
+<section id="return" class="page">
+  <div class="box">
+    <b style="font-size:17px">คืนอุปกรณ์</b>
+    <div class="field"><label>Location</label><select id="locR"></select></div>
+    <div id="scanR"></div>
+  </div>
+  <div id="detailR"></div>
+  <h2>อุปกรณ์ที่ถูกยืมอยู่ (กดเลือกได้)</h2>
+  <div class="wrap"><table>
+    <thead><tr><th>ID</th><th>อุปกรณ์</th><th>Location</th><th>ผู้ยืม</th><th>วันที่สิ้นสุด</th><th>กำหนดคืน</th></tr></thead>
+    <tbody id="listR"></tbody>
+  </table></div>
+</section>
+
+<section id="history" class="page">
+  <h2 style="margin-top:0">ประวัติการยืม-คืนทั้งหมด</h2>
+  <div class="wrap"><table>
+    <thead><tr><th>TransactionID</th><th>อุปกรณ์</th><th>ผู้ยืม</th><th>วันที่เริ่มยืม</th><th>กำหนดคืน</th><th>วันที่คืนจริง</th><th>สถานะ</th></tr></thead>
+    <tbody id="hisTbody"></tbody>
+  </table></div>
+  <div id="hisMsg" class="muted" style="padding:10px"></div>
+</section>
+<div id="readerTmp" style="display:none"></div>
+</main>
+
+<script>
+async function call(action, args) {
+  const r = await fetch('/api/rpc', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, args })
+  });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error);
+  return j.data;
+}
+const google = { script: { run: (function mk(ok, ng) {
+  return new Proxy({}, { get: (_, k) => {
+    if (k === 'withSuccessHandler') return f => mk(f, ng);
+    if (k === 'withFailureHandler') return f => mk(ok, f);
+    return (...args) => { call(k, args).then(d => ok && ok(d), e => ng ? ng(e) : console.error(e)); };
+  }});
+})() } };
+let INITIAL_ID = new URLSearchParams(location.search).get('id') || '', initialDone = false;
+function tryOpenInitial(){ if (INITIAL_ID && items.length && !initialDone) { initialDone = true; openItem(INITIAL_ID); } }
+let items = [], history = null, filter = 'all', scanner = null, borrower = null;
+let borrowers = [], borrowersLoaded = false, borrowersFailed = false;
+const sel = { b: null, r: null };
+const $ = id => document.getElementById(id);
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const pad = n => (n < 10 ? '0' : '') + n;
+
+const parseD = s => { const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? new Date(+m[1], +m[2]-1, +m[3]) : null; };
+const fd = s => { const d = parseD(s); return d ? pad(d.getDate()) + '/' + pad(d.getMonth()+1) + '/' + d.getFullYear() : '-'; };
+const iso = d => d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+const today0 = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
+function dueInfo(due){
+  const d = parseD(due);
+  if (!d) return { txt:'ไม่ระบุกำหนด', cls:'warn', over:false };
+  const diff = Math.round((d - today0()) / 864e5);
+  if (diff < 0)  return { txt:'เลยกำหนด ' + (-diff) + ' วัน', cls:'over', over:true };
+  if (diff === 0) return { txt:'ครบกำหนดวันนี้', cls:'warn', over:false };
+  return { txt:'เหลือ ' + diff + ' วัน', cls: diff <= 2 ? 'warn' : 'ok', over:false };
+}
+const findItem = id => { const k = String(id || '').trim().toUpperCase(); return items.find(i => i.ID.toUpperCase() === k); };
+function statusPill(i){
+  if (i.Status !== 'ถูกยืม') return `<span class="pill ok">${esc(i.Status)}</span>`;
+  const o = dueInfo(i.dueDate).over;
+  return `<span class="pill ${o ? 'over' : 'warn'}">ถูกยืม${o ? ' (เลยกำหนด)' : ''}</span>`;
+}
+const itemInfo = i => `<dl><dt>ID</dt><dd>${esc(i.ID)}</dd><dt>อุปกรณ์</dt><dd>${esc(i.Name)}</dd> <dt>Type</dt><dd>${esc(i.Type || '-')}</dd><dt>Location</dt><dd>${esc(i.Location || '-')}</dd></dl>`;
+
+function go(p){
+  document.querySelectorAll('.page').forEach(e => e.classList.toggle('active', e.id === p));
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.p === p));
+  stopScan();
+  if (p === 'history') loadHistory();
+}
+$('nav').onclick = e => { if (e.target.dataset.p) go(e.target.dataset.p); };
+
+function loadBorrowers(){
+  borrowersFailed = false;
+  google.script.run.withSuccessHandler(b => { borrowers = b || []; borrowersLoaded = true; if ($('bid')) showBorrowerMatches(); }).withFailureHandler(e => { borrowersFailed = true; if ($('bid')) showBorrowerMatches(); }).getBorrowers();
+}
+function init(){
+  if (!borrowersLoaded) loadBorrowers();
+  const ld = $('loading');
+  ld.style.display = 'block'; ld.textContent = 'กำลังโหลด...';
+  clearTimeout(init.t);
+  init.t = setTimeout(() => {
+    if (ld.style.display !== 'none') ld.textContent = 'รอข้อมูลนานผิดปกติ — ตรวจว่าโปรแกรม C# กำลังรันอยู่ และเปิด http://localhost:5000/api/ping เพื่อทดสอบการเชื่อมต่อฐานข้อมูล';
+  }, 12000);
+  google.script.run.withSuccessHandler(e => {
+    clearTimeout(init.t);
+    items = e || []; history = null;
+    ld.style.display = 'none';
+    fillLocs(); renderAll();
+    tryOpenInitial();
+  }).withFailureHandler(err => {
+    clearTimeout(init.t);
+    ld.style.display = 'block';
+    ld.textContent = 'โหลดข้อมูลไม่สำเร็จ: ' + ((err && err.message) || err);
+  }).getEquipmentList();
+}
+function fillLocs(){
+  const locs = [...new Set(items.map(i => i.Location).filter(Boolean))].sort();
+  ['locD', 'locB', 'locR'].forEach(id => {
+    const s = $(id), v = s.value;
+    s.innerHTML = '<option value="">ทุก Location</option>' + locs.map(l => `<option>${esc(l)}</option>`).join('');
+    s.value = locs.includes(v) ? v : '';
+  });
+}
+function renderAll(){ renderDash(); renderListB(); renderListR(); }
+['locD', 'locB', 'locR'].forEach(id => $(id).onchange = renderAll);
+document.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+  filter = c.dataset.f;
+  document.querySelectorAll('.chip').forEach(x => x.classList.toggle('active', x === c));
+  renderDash();
+});
+
+function renderDash(){
+  const loc = $('locD').value;
+  const inLoc = items.filter(i => !loc || i.Location === loc);
+  const borrowed = inLoc.filter(i => i.Status === 'ถูกยืม');
+  $('stAll').textContent = inLoc.length;
+  $('stAvail').textContent = inLoc.length - borrowed.length;
+  $('stBor').textContent = borrowed.length;
+  $('stOver').textContent = borrowed.filter(i => dueInfo(i.dueDate).over).length;
+  $('allTbody').innerHTML = inLoc.filter(i =>
+    filter === 'all' || (filter === 'borrowed' ? i.Status === 'ถูกยืม' : i.Status !== 'ถูกยืม')
+  ).map(i => `<tr class="click ${i.Status === 'ถูกยืม' && dueInfo(i.dueDate).over ? 'row-over' : ''}" onclick="openItem('${esc(i.ID)}')"> <td>${esc(i.ID)}</td><td>${esc(i.Name)}</td><td>${esc(i.Type || '-')}</td><td>${esc(i.Location || '-')}</td><td>${statusPill(i)}</td></tr>`).join('');
+}
+
+function renderListB(){
+  const loc = $('locB').value;
+  const rows = items.filter(i => i.Status !== 'ถูกยืม' && (!loc || i.Location === loc));
+  $('listB').innerHTML = rows.length ? rows.map(i => `<tr class="click" onclick="pick('b','${esc(i.ID)}')"> <td>${esc(i.ID)}</td><td>${esc(i.Name)}</td><td>${esc(i.Type || '-')}</td><td>${esc(i.Location || '-')}</td></tr>`).join('')
+    : '<tr><td colspan="4" class="muted">ไม่มีอุปกรณ์ที่พร้อมให้ยืมใน Location นี้</td></tr>';
+}
+function renderListR(){
+  const loc = $('locR').value;
+  const rows = items.filter(i => i.Status === 'ถูกยืม' && (!loc || i.Location === loc));
+  $('listR').innerHTML = rows.length ? rows.map(i => { const d = dueInfo(i.dueDate); return `<tr class="click ${d.over ? 'row-over' : ''}" onclick="pick('r','${esc(i.ID)}')"> <td>${esc(i.ID)}</td><td>${esc(i.Name)}</td><td>${esc(i.Location || '-')}</td><td>${esc(i.currentBorrower || '-')}</td> <td>${fd(i.dueDate)}</td><td><span class="pill ${d.cls}">${d.txt}</span></td></tr>`; }).join('')
+    : '<tr><td colspan="6" class="muted">ไม่มีอุปกรณ์ที่ถูกยืมใน Location นี้</td></tr>';
+}
+
+function openItem(id){
+  const i = findItem(id); if (!i) return;
+  const k = i.Status === 'ถูกยืม' ? 'r' : 'b';
+  go(k === 'r' ? 'return' : 'borrow'); pick(k, id);
+}
+function pick(k, raw){
+  let id = String(raw || '').trim();
+  const m = id.match(/[?&]id=([^&#]+)/); if (m) id = decodeURIComponent(m[1]);
+  if (!id) return;
+  $('code-' + k).value = id;
+  const box = $(k === 'b' ? 'detailB' : 'detailR');
+  const i = findItem(id);
+  sel[k] = null;
+  if (!i) { box.innerHTML = `<div class="box"><span class="pill over">ไม่พบอุปกรณ์รหัส "${esc(id)}"</span></div>`; return; }
+  if (k === 'b') {
+    if (i.Status === 'ถูกยืม') {
+      box.innerHTML = `<div class="box">${itemInfo(i)}<span class="pill over">อุปกรณ์นี้ถูกยืมอยู่ (${esc(i.currentBorrower)})</span> <div class="actions"><button class="btn" onclick="openItem('${esc(i.ID)}')">ไปหน้าคืน</button></div></div>`;
+    } else { sel.b = i; borrower = null; renderDetailB(); }
+  } else {
+    if (i.Status !== 'ถูกยืม') {
+      box.innerHTML = `<div class="box">${itemInfo(i)}<span class="pill ok">อุปกรณ์นี้ไม่ได้ถูกยืมอยู่</span></div>`;
+    } else { sel.r = i; renderDetailR(); }
+  }
+  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function renderDetailB(){
+  const i = sel.b, t = today0(), end = new Date(t); end.setDate(end.getDate() + 7);
+  $('detailB').innerHTML = `<div class="box">${itemInfo(i)} <div class="field"><label>ID ผู้ขอยืม</label><input id="bid" placeholder="พิมพ์ ID ผู้ยืม (ไม่ต้องครบก็ได้)" autocomplete="off"></div> <div id="bInfo" class="info muted">กรอก ID เพื่อดึงข้อมูลผู้ยืม</div> <dl><dt>วันที่เริ่มยืม</dt><dd>${fd(iso(t))} (วันนี้ ตั้งอัตโนมัติ)</dd></dl> <div class="field"><label>วันที่สิ้นสุด</label><input type="date" id="bEnd" value="${iso(end)}" min="${iso(t)}"></div> <div class="actions"><button class="btn" onclick="cancel('b')">ยกเลิก</button><button class="btn primary" id="btnBorrow" disabled>ยืนยันยืม</button></div></div>`;
+  $('bid').oninput = showBorrowerMatches;
+  $('bid').onkeydown = e => { if (e.key === 'Enter') showBorrowerMatches(); };
+  $('btnBorrow').onclick = doBorrow;
+  showBorrowerMatches();
+  $('bid').focus();
+}
+function chooseBorrower(id, fill){
+  const b = borrowers.find(x => x.ID === id);
+  if (!b) return;
+  borrower = b;
+  if (fill) $('bid').value = b.ID;
+  const info = $('bInfo');
+  info.className = 'info';
+  info.innerHTML = `<dl><dt>ID</dt><dd>${esc(b.ID)}</dd><dt>ชื่อ-นามสกุล</dt><dd>${esc(b.Name)}</dd><dt>Department</dt><dd>${esc(b.Department || '-')}</dd><dt>Phone</dt><dd>${esc(b.Phone || '-')}</dd></dl>`;
+  $('btnBorrow').disabled = false;
+}
+function showBorrowerMatches(){
+  const input = $('bid'), info = $('bInfo');
+  if (!input || !info) return;
+  const q = input.value.trim().toLowerCase();
+  borrower = null; $('btnBorrow').disabled = true;
+  info.className = 'info muted';
+  if (borrowersFailed) { info.textContent = 'โหลดรายชื่อผู้ยืมไม่สำเร็จ — ตรวจชีต "รายชื่อ" แล้วรีเฟรชหน้า'; return; }
+  if (!q) { info.textContent = 'พิมพ์ ID ผู้ยืม (ไม่ต้องครบก็ได้) ระบบจะแสดงชื่อให้'; return; }
+  if (!borrowersLoaded) { info.textContent = 'กำลังโหลดรายชื่อ...'; return; }
+  let list = borrowers.filter(b => b.ID.toLowerCase().indexOf(q) === 0);
+  if (!list.length && q.length >= 3) list = borrowers.filter(b => b.ID.toLowerCase().indexOf(q) !== -1);
+  const exact = list.filter(b => b.ID.toLowerCase() === q)[0];
+  if (exact) { chooseBorrower(exact.ID, false); return; }
+  if (list.length === 1) { chooseBorrower(list[0].ID, false); return; }
+  info.className = 'info';
+  if (!list.length) { info.innerHTML = `<span class="pill over">ไม่พบ ID ที่ขึ้นต้นด้วย "${esc(q)}"</span>`; return; }
+  info.innerHTML = `<div class="muted">พบ ${list.length} รายการ — พิมพ์เพิ่มอีกนิด หรือกดเลือกชื่อ</div>` + list.slice(0, 8).map(b => `<div class="cand" onclick="chooseBorrower('${esc(b.ID)}', true)"><b>${esc(b.ID)}</b> ${esc(b.Name)} <span class="muted">${esc(b.Department)}</span></div>`).join('');
+}
+function doBorrow(){
+  const end = $('bEnd').value, btn = $('btnBorrow');
+  if (!borrower) { alert('กรุณากรอก ID ผู้ยืมให้ถูกต้อง'); return; }
+  if (!end) { alert('กรุณาเลือกวันที่สิ้นสุด'); return; }
+  btn.disabled = true;
+  google.script.run.withSuccessHandler(r => afterAction(r, btn, 'b'))
+    .withFailureHandler(er => { btn.disabled = false; alert(er.message || er); })
+    .borrowEquipment(sel.b.ID, borrower.ID, end);
+}
+
+function renderDetailR(){
+  const i = sel.r, d = dueInfo(i.dueDate);
+  $('detailR').innerHTML = `<div class="box">${itemInfo(i)} <div class="info"><dl><dt>ผู้ยืม</dt><dd>${esc(i.borrowerId)} ${esc(i.currentBorrower || '-')}</dd> <dt>วันที่เริ่มยืม</dt><dd>${fd(i.borrowDate)}</dd> <dt>วันที่สิ้นสุด</dt><dd>${fd(i.dueDate)} <span class="pill ${d.cls}">${d.txt}</span></dd></dl></div> <div class="actions"><button class="btn" onclick="cancel('r')">ยกเลิก</button><button class="btn danger" id="btnReturn">ยืนยันคืนอุปกรณ์</button></div></div>`;
+  $('btnReturn').onclick = () => {
+    if (!confirm('ยืนยันการคืน ' + sel.r.ID + ' ?')) return;
+    const btn = $('btnReturn'); btn.disabled = true;
+    google.script.run.withSuccessHandler(r => afterAction(r, btn, 'r'))
+      .withFailureHandler(er => { btn.disabled = false; alert(er.message || er); })
+      .returnEquipment(sel.r.ID);
+  };
+}
+function cancel(k){ sel[k] = null; $(k === 'b' ? 'detailB' : 'detailR').innerHTML = ''; $('code-' + k).value = ''; }
+function afterAction(res, btn, k){
+  btn.disabled = false;
+  alert(res && res.success ? res.message : 'ไม่สำเร็จ: ' + ((res && res.message) || 'เกิดข้อผิดพลาด'));
+  if (res && res.success) { cancel(k); init(); }
+}
+
+function scanBox(k){
+  return `<div class="row"><input id="code-${k}" placeholder="กรอก/สแกนรหัสอุปกรณ์ เช่น M0001" autocomplete="off"> <button class="btn primary" onclick="pick('${k}', $('code-${k}').value)">ค้นหา</button></div> <div class="row"><button class="btn" id="scan-${k}" onclick="startScan('${k}')">สแกนด้วยกล้อง</button> <button class="btn" id="stop-${k}" style="display:none" onclick="stopScan()">ปิดกล้อง</button> <label class="btn">ถ่าย/เลือกรูป QR<input type="file" accept="image/\x2A" capture="environment" hidden onchange="scanFile('${k}', this)"></label></div> <div id="reader-${k}" class="reader"></div>`;
+}
+$('scanB').innerHTML = scanBox('b'); $('scanR').innerHTML = scanBox('r');
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.id && e.target.id.startsWith('code-')) pick(e.target.id.slice(5), e.target.value);
+});
+
+function loadLib(){
+  return new Promise((ok, ng) => {
+    if (typeof Html5Qrcode !== 'undefined') return ok();
+    const s = document.createElement('script');
+    s.src = 'https:/' + '/cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
+    s.onload = ok; s.onerror = () => ng(new Error('โหลดไลบรารีสแกนไม่ได้'));
+    document.head.appendChild(s);
+  });
+}
+async function startScan(k){
+  await stopScan();
+  try { await loadLib(); } catch (e) { alert('โหลดไลบรารีสแกน QR ไม่ได้ (เครือข่ายอาจบล็อก) ให้กรอกรหัสแทน'); return; }
+  $('reader-' + k).style.display = 'block'; $('scan-' + k).style.display = 'none'; $('stop-' + k).style.display = '';
+  try {
+    scanner = new Html5Qrcode('reader-' + k);
+    await scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: 220 }, txt => { stopScan(); pick(k, txt); });
+  } catch (e) {
+    await stopScan();
+    alert('เปิดกล้องไม่ได้ กรุณากดอนุญาตกล้องในเบราว์เซอร์ (ใช้ได้เมื่อเปิดผ่าน localhost หรือ https)\nหรือใช้ปุ่ม "ถ่าย/เลือกรูป QR" / กรอกรหัสแทน');
+  }
+}
+async function stopScan(){
+  if (scanner) { try { await scanner.stop(); } catch (e) {} try { scanner.clear(); } catch (e) {} scanner = null; }
+  ['b', 'r'].forEach(k => { $('reader-' + k).style.display = 'none'; $('scan-' + k).style.display = ''; $('stop-' + k).style.display = 'none'; });
+}
+async function scanFile(k, inp){
+  const f = inp.files[0]; if (!f) return;
+  try { await loadLib(); } catch (e) { alert('โหลดไลบรารีสแกน QR ไม่ได้ ให้กรอกรหัสแทน'); inp.value = ''; return; }
+  try { pick(k, await new Html5Qrcode('readerTmp').scanFile(f, false)); }
+  catch (err) { alert('อ่าน QR จากรูปไม่ได้ กรุณาถ่ายใหม่ให้ชัดขึ้น'); }
+  inp.value = '';
+}
+
+function loadHistory(){
+  if (history) return renderHistory();
+  $('hisMsg').textContent = 'กำลังโหลดประวัติ...';
+  google.script.run.withSuccessHandler(d => {
+    history = d.sort((a, b) => (parseInt(b.TransactionID.slice(1)) || 0) - (parseInt(a.TransactionID.slice(1)) || 0));
+    renderHistory();
+  }).withFailureHandler(e => { $('hisMsg').textContent = 'โหลดไม่สำเร็จ: ' + (e.message || e); }).getHistoryList();
+}
+function renderHistory(){
+  const nameOf = id => (findItem(id) || {}).Name || id;
+  $('hisMsg').textContent = history.length ? '' : 'ยังไม่มีประวัติการยืม-คืน';
+  $('hisTbody').innerHTML = history.map(h => {
+    const late = h.Status === 'ยืมอยู่' && dueInfo(h.DueDate).over;
+    const cls = h.Status === 'คืนแล้ว' ? 'ok' : (late ? 'over' : 'warn');
+    return `<tr><td>${esc(h.TransactionID)}</td><td>${esc(h.EquipmentID)} ${esc(nameOf(h.EquipmentID))}</td> <td>${esc(h.BorrowerID)} ${esc(h.BorrowerName)}</td><td>${fd(h.BorrowDate)}</td><td>${fd(h.DueDate)}</td> <td>${h.ReturnDate ? fd(h.ReturnDate) : '-'}</td><td><span class="pill ${cls}">${late ? 'ยืมอยู่ (เลยกำหนด)' : esc(h.Status)}</span></td></tr>`;
+  }).join('');
+}
+
+init();
+</script>
+</body>
+</html>
